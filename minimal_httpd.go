@@ -90,7 +90,7 @@ func doRequest(connection net.Conn) {
 		response:="ERROR"
 		if(len(words)>0) {
 			if(words[0]=="GET") {
-				if _, err := os.Stat(ROOT+file[1:]); err != nil {
+				if _, err := os.Stat(ROOT+"/"+file[1:]); err != nil {
 					response:=code404+"\n"+"\n"
 					go storeLog(connection.RemoteAddr().String()+" GET "+file+" 404")
 					connection.Write([]byte(response))
@@ -100,7 +100,7 @@ func doRequest(connection net.Conn) {
 						response=code200+"\n"+contentTypeText+"\n"+"\n"
 						go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
 						connection.Write([]byte(response))
-						filescan, err := os.Open(ROOT+file[1:])
+						filescan, err := os.Open(ROOT+"/"+file[1:])
 						if err != nil {
 							fmt.Println(err)
 						}
@@ -114,7 +114,7 @@ func doRequest(connection net.Conn) {
 						filescan.Close()
 					} else {
 						contentDispositionAttachment:=contentDispositionAttachmentWithoutFilename+file[1:]
-						openfile, _ := os.Open(ROOT+file[1:])
+						openfile, _ := os.Open(ROOT+"/"+file[1:])
 						data := make([]byte, 1048576)
 						response=code200+"\n"+contentTypeOctet+"\n"+contentDispositionAttachment+"\n"+"\n"
 						go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
