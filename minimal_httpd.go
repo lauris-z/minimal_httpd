@@ -41,16 +41,16 @@ func initLogs() {
 }
 
 func exists(path string) bool {
-    _, err := os.Stat(path)
-    if err == nil { return true }
-    if os.IsNotExist(err) { return false }
-    return true
+	_, err := os.Stat(path)
+	if err == nil { return true }
+	if os.IsNotExist(err) { return false }
+	return true
 }
 
 func storeLog(line string) {
 	f, err := os.OpenFile(LOGS, os.O_APPEND|os.O_WRONLY, 0600)
-  	if(err==nil) {
-  		defer f.Close()
+		if(err==nil) {
+			defer f.Close()
 		timeInt64:=time.Now().UnixNano()/int64(time.Millisecond)
 		timeString:=strconv.FormatInt(timeInt64, 10)
 		f.WriteString(timeString+" "+line+"\n")
