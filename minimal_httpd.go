@@ -1,23 +1,30 @@
 package main
 
 import (
+	"io"
 	"os"
 	"net"
 	"fmt"
-	"io"
-	"bufio"
-	"encoding/binary"
-	"strings"
 	"time"
+	"bufio"
 	"strconv"
+	"strings"
 )
 
 var HTML_EXTENSION = ".html"
-var LOGS = "logs_minimal_httpd.txt"
+var code200 = "HTTP/1.1 200 OK"
+var code404 = "HTTP/1.1 404 NOT FOUND"
+var contentTypeOctet = "Content-Type: application/octet-stream"
+var contentTypeText = "Content-Type: text/html"
+var contentDispositionAttachmentWithoutFilename = "Content-Disposition: attachment; filename="
+var ROOT = ""
+var LOGS = ""
 
 func main() {
-	initLogs()
 	port := os.Args[1]
+	ROOT = os.Args[2]
+	LOGS = os.Args[3]
+	initLogs()
 	createListenerDataGetHttp(":"+port)
 }
 
@@ -69,19 +76,21 @@ func doRequest(connection net.Conn) {
 		reader := bufio.NewReader(connection)
 		line, _ := reader.ReadString('\n')
 		words := strings.Fields(line)
-		file:="robots.txt"
+		file:="index.html"
 		if(len(words)>1) {
 			file=words[1]
+			if(file=="/") {
+				file="/index.html"
+			} else if(len(file)>1) {
+				if(file[1:2]=="/") {
+					file="/index.html" //fix bug if url = localhost:8080//toto.html (more than one slash)
+				}
+			}
 		}
 		response:="ERROR"
-		code200:="HTTP/1.1 200 OK"
-		code404:="HTTP/1.1 404 NOT FOUND"
-		contentTypeOctet:="Content-Type: application/octet-stream"
-		contentTypeText:="Content-Type: text/html"
-		contentDispositionAttachment:="Content-Disposition: attachment; filename="+file[1:]
 		if(len(words)>0) {
 			if(words[0]=="GET") {
-				if _, err := os.Stat(file[1:]); err != nil {
+				if _, err := os.Stat(ROOT+file[1:]); err != nil {
 					response:=code404+"\n"+"\n"
 					go storeLog(connection.RemoteAddr().String()+" GET "+file+" 404")
 					connection.Write([]byte(response))
@@ -91,7 +100,7 @@ func doRequest(connection net.Conn) {
 						response=code200+"\n"+contentTypeText+"\n"+"\n"
 						go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
 						connection.Write([]byte(response))
-						filescan, err := os.Open(file[1:])
+						filescan, err := os.Open(ROOT+file[1:])
 						if err != nil {
 							fmt.Println(err)
 						}
@@ -102,11 +111,13 @@ func doRequest(connection net.Conn) {
 							line=scanner.Text()
 							connection.Write([]byte(line))
 						}
+						filescan.Close()
 					} else {
-						openfile, _ := os.Open(file[1:])
+						contentDispositionAttachment:=contentDispositionAttachmentWithoutFilename+file[1:]
+						openfile, _ := os.Open(ROOT+file[1:])
 						data := make([]byte, 1048576)
 						response=code200+"\n"+contentTypeOctet+"\n"+contentDispositionAttachment+"\n"+"\n"
-						storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
+						go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
 						connection.Write([]byte(response))
 						k:=0
 						total:=0
@@ -120,16 +131,10 @@ func doRequest(connection net.Conn) {
 									data2 := make([]byte, count)
 									copy(data2,data)
 									total+=len(data2)
-									err := binary.Write(connection, binary.LittleEndian, data2)
-									if err != nil {
-										fmt.Println("err:", err)
-									}
+									connection.Write([]byte(data2))
 								} else {
 									total+=len(data)
-									err2 := binary.Write(connection, binary.LittleEndian, data)
-									if err2 != nil {
-										fmt.Println("err:", err2)
-									}
+									connection.Write([]byte(data))
 								}
 						}
 						openfile.Close()
@@ -137,6 +142,7 @@ func doRequest(connection net.Conn) {
 					connection.Close()
 				}
 			}
+			connection.Close()
 		}
 	}
 }
