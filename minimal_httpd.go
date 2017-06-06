@@ -86,15 +86,12 @@ func doRequest(connection net.Conn) {
 					file="/index.html" //fix bug if url = localhost:8080//toto.html (more than one slash)
 				}
 			}
-		}
-		response:="ERROR"
-		if(len(words)>0) {
+			response:="ERROR"
 			if(words[0]=="GET") {
 				if _, err := os.Stat(ROOT+"/"+file[1:]); err != nil {
 					response:=code404+"\n"+"\n"
 					go storeLog(connection.RemoteAddr().String()+" GET "+file+" 404")
 					connection.Write([]byte(response))
-					connection.Close()
 				} else {
 					if(file[len(file)-len(HTML_EXTENSION):]==HTML_EXTENSION) {
 						response=code200+"\n"+contentTypeText+"\n"+"\n"
@@ -139,10 +136,10 @@ func doRequest(connection net.Conn) {
 						}
 						openfile.Close()
 					}
-					connection.Close()
 				}
 			}
-			connection.Close()
 		}
+		connection.Close()
+		break
 	}
 }
