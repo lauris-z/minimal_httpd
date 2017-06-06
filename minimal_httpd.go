@@ -72,74 +72,71 @@ func createListenerDataGetHttp(port string) {
 }
 
 func doRequest(connection net.Conn) {
-	for {
-		reader := bufio.NewReader(connection)
-		line, _ := reader.ReadString('\n')
-		words := strings.Fields(line)
-		file:="index.html"
-		if(len(words)>1) {
-			file=words[1]
-			if(file=="/") {
-				file="/index.html"
-			} else if(len(file)>1) {
-				if(file[1:2]=="/") {
-					file="/index.html" //fix bug if url = localhost:8080//toto.html (more than one slash)
-				}
+	reader := bufio.NewReader(connection)
+	line, _ := reader.ReadString('\n')
+	words := strings.Fields(line)
+	file:="index.html"
+	if(len(words)>1) {
+		file=words[1]
+		if(file=="/") {
+			file="/index.html"
+		} else if(len(file)>1) {
+			if(file[1:2]=="/") {
+				file="/index.html" //fix bug if url = localhost:8080//toto.html (more than one slash)
 			}
-			response:="ERROR"
-			if(words[0]=="GET") {
-				if _, err := os.Stat(ROOT+"/"+file[1:]); err != nil {
-					response:=code404+"\n"+"\n"
-					go storeLog(connection.RemoteAddr().String()+" GET "+file+" 404")
+		}
+		response:="ERROR"
+		if(words[0]=="GET") {
+			if _, err := os.Stat(ROOT+"/"+file[1:]); err != nil {
+				response:=code404+"\n"+"\n"
+				go storeLog(connection.RemoteAddr().String()+" GET "+file+" 404")
+				connection.Write([]byte(response))
+			} else {
+				if(file[len(file)-len(HTML_EXTENSION):]==HTML_EXTENSION) {
+					response=code200+"\n"+contentTypeText+"\n"+"\n"
+					go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
 					connection.Write([]byte(response))
-				} else {
-					if(file[len(file)-len(HTML_EXTENSION):]==HTML_EXTENSION) {
-						response=code200+"\n"+contentTypeText+"\n"+"\n"
-						go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
-						connection.Write([]byte(response))
-						filescan, err := os.Open(ROOT+"/"+file[1:])
-						if err != nil {
-							fmt.Println(err)
-						}
-						defer filescan.Close()
-						scanner := bufio.NewScanner(filescan)
-						line:=""
-						for scanner.Scan() {
-							line=scanner.Text()
-							connection.Write([]byte(line))
-						}
-						filescan.Close()
-					} else {
-						contentDispositionAttachment:=contentDispositionAttachmentWithoutFilename+file[1:]
-						openfile, _ := os.Open(ROOT+"/"+file[1:])
-						data := make([]byte, 1048576)
-						response=code200+"\n"+contentTypeOctet+"\n"+contentDispositionAttachment+"\n"+"\n"
-						go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
-						connection.Write([]byte(response))
-						k:=0
-						total:=0
-						for {
-								count, err := openfile.Read(data)
-								if err == io.EOF {
-									break
-								}
-								k+=1
-								if count < 1048576 {
-									data2 := make([]byte, count)
-									copy(data2,data)
-									total+=len(data2)
-									connection.Write([]byte(data2))
-								} else {
-									total+=len(data)
-									connection.Write([]byte(data))
-								}
-						}
-						openfile.Close()
+					filescan, err := os.Open(ROOT+"/"+file[1:])
+					if err != nil {
+						fmt.Println(err)
 					}
+					defer filescan.Close()
+					scanner := bufio.NewScanner(filescan)
+					line:=""
+					for scanner.Scan() {
+						line=scanner.Text()
+						connection.Write([]byte(line))
+					}
+					filescan.Close()
+				} else {
+					contentDispositionAttachment:=contentDispositionAttachmentWithoutFilename+file[1:]
+					openfile, _ := os.Open(ROOT+"/"+file[1:])
+					data := make([]byte, 1048576)
+					response=code200+"\n"+contentTypeOctet+"\n"+contentDispositionAttachment+"\n"+"\n"
+					go storeLog(connection.RemoteAddr().String()+" GET "+file+" 200")
+					connection.Write([]byte(response))
+					k:=0
+					total:=0
+					for {
+							count, err := openfile.Read(data)
+							if err == io.EOF {
+								break
+							}
+							k+=1
+							if count < 1048576 {
+								data2 := make([]byte, count)
+								copy(data2,data)
+								total+=len(data2)
+								connection.Write([]byte(data2))
+							} else {
+								total+=len(data)
+								connection.Write([]byte(data))
+							}
+					}
+					openfile.Close()
 				}
 			}
 		}
-		connection.Close()
-		break
 	}
+	connection.Close()
 }
