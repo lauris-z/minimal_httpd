@@ -49,8 +49,8 @@ func exists(path string) bool {
 
 func storeLog(line string) {
 	f, err := os.OpenFile(LOGS, os.O_APPEND|os.O_WRONLY, 0600)
-		if(err==nil) {
-			defer f.Close()
+	if(err==nil) {
+		defer f.Close()
 		timeInt64:=time.Now().UnixNano()/int64(time.Millisecond)
 		timeString:=strconv.FormatInt(timeInt64, 10)
 		f.WriteString(timeString+" "+line+"\n")
